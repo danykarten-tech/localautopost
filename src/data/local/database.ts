@@ -9,7 +9,8 @@ import {
   ActivityItem,
   ContentStatus,
   GenerationBatch,
-  MediaAsset 
+  MediaAsset,
+  PublishJob 
 } from '../../domain/models/types';
 
 import { 
@@ -35,7 +36,8 @@ const STORAGE_KEYS = {
   ACTIVITIES: 'avenzaq_activities',
   THEME: 'avenzaq_theme',
   BATCHES: 'avenzaq_generation_batches',
-  LAST_QUANTITY: 'avenzaq_last_quantity'
+  LAST_QUANTITY: 'avenzaq_last_quantity',
+  PUBLISH_JOBS: 'avenzaq_publish_jobs'
 };
 
 class LocalDatabase {
@@ -297,6 +299,30 @@ class LocalDatabase {
     const current = this.getMediaAssets();
     const updated = current.filter(m => m.id !== id);
     localStorage.setItem(STORAGE_KEYS.MEDIA_ASSETS, JSON.stringify(updated));
+    this.notify();
+  }
+
+  // Publish Jobs (Phase 8)
+  public getPublishJobs(): PublishJob[] {
+    const raw = localStorage.getItem(STORAGE_KEYS.PUBLISH_JOBS);
+    return raw ? JSON.parse(raw) : [];
+  }
+
+  public getPublishJob(id: string): PublishJob | undefined {
+    return this.getPublishJobs().find(j => j.id === id || j.publishJobId === id);
+  }
+
+  public savePublishJob(job: PublishJob): void {
+    const current = this.getPublishJobs();
+    const idx = current.findIndex(j => j.id === job.id || j.publishJobId === job.publishJobId);
+    let updated: PublishJob[];
+    if (idx >= 0) {
+      updated = [...current];
+      updated[idx] = job;
+    } else {
+      updated = [job, ...current];
+    }
+    localStorage.setItem(STORAGE_KEYS.PUBLISH_JOBS, JSON.stringify(updated));
     this.notify();
   }
 

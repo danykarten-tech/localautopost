@@ -330,3 +330,47 @@ export interface NotificationsState {
     type: 'info' | 'success' | 'warning';
   }[];
 }
+
+export type LocalPublishingState =
+  | 'BROWSER_OFFLINE'
+  | 'BROWSER_DETECTED'
+  | 'TARGET_PAGE_NOT_FOUND'
+  | 'AUTHENTICATION_REQUIRED'
+  | 'SESSION_READY'
+  | 'AUTOMATION_READY'
+  | 'PUBLISHING'
+  | 'PUBLISHED'
+  | 'PUBLISH_FAILED'
+  | 'ACTION_REQUIRED'
+  | 'UNKNOWN_PUBLISH_STATE';
+
+export type PublishJobStatus =
+  | 'SCHEDULED'
+  | 'READY_TO_PUBLISH'
+  | 'PUBLISHING'
+  | 'PUBLISHED'
+  | 'PUBLISH_FAILED'
+  | 'UNKNOWN_PUBLISH_STATE'
+  | 'ACTION_REQUIRED'
+  | 'CANCELLED';
+
+export interface PublishJob {
+  id: string;
+  publishJobId: string;
+  conceptId: string;
+  mediaId: string;
+  platform: PlatformType;
+  accountId: string;
+  scheduledAt: string;
+  caption: string;
+  status: PublishJobStatus;
+  attemptCount: number;
+  createdAt: string;
+  updatedAt: string;
+  lastError?: string;
+  publishedAt?: string;
+  platformReference?: string;
+  verificationStatus?: 'VERIFIED' | 'UNVERIFIED' | 'FAILED';
+  idempotencyToken: string;
+  isTestMode?: boolean;
+}
