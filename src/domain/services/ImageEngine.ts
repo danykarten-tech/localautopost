@@ -9,6 +9,7 @@ import {
 } from '../models/types';
 import { localDb } from '../../data/local/database';
 import { MockImageProvider } from '../../providers/image/MockImageProvider';
+import { LocalSessionImageProvider } from '../../providers/image/LocalSessionImageProvider';
 import { ImageValidator } from './ImageValidator';
 
 const SETTINGS_KEY = 'avenzaq_image_engine_settings';
@@ -82,7 +83,11 @@ export class ImageEngine {
 
     localDb.logActivity('image_generated', 'Image Generation Started', `Started generating image for "${concept.title}".`);
 
-    const provider = new MockImageProvider();
+    const aiConfig = localDb.getAIConnection();
+    const provider = aiConfig.providerType === 'local_session'
+      ? new LocalSessionImageProvider()
+      : new MockImageProvider();
+
     const generatedAssets = await provider.generateImage(request);
 
     // Validate generated assets

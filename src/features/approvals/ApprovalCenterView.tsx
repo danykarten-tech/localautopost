@@ -89,10 +89,27 @@ export const ApprovalCenterView: React.FC<ApprovalCenterViewProps> = ({
   };
 
   const handleSingleGenerateImage = async (conceptId: string) => {
+    const aiConn = localDb.getAIConnection();
+    if (aiConn.providerType === 'local_session' && aiConn.status !== 'connected') {
+      alert('ChatGPT browser session required. Please connect your session in AI Studio.');
+      return;
+    }
     try {
       await imageEngine.generateImageForConcept(conceptId);
     } catch (e: any) {
       alert(e.message || 'Failed to generate image.');
+    }
+  };
+
+  const handleSingleApprove = async (conceptId: string) => {
+    localDb.updateConceptStatus(conceptId, 'approved');
+    const settings = imageEngine.getSettings();
+    if (settings.autoGenerateAfterApproval) {
+      try {
+        await handleSingleGenerateImage(conceptId);
+      } catch (e: any) {
+        console.warn('Auto image generation failed:', e.message);
+      }
     }
   };
 
@@ -288,7 +305,7 @@ export const ApprovalCenterView: React.FC<ApprovalCenterViewProps> = ({
                     {item.status !== 'approved' && item.status !== 'scheduled' && (
                       <button 
                         className="btn btn-primary btn-sm" 
-                        onClick={() => localDb.updateConceptStatus(item.id, 'approved')}
+                        onClick={() => handleSingleApprove(item.id)}
                       >
                         <CheckCircle2 size={13} /> Approve
                       </button>

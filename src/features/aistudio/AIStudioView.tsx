@@ -24,6 +24,30 @@ export const AIStudioView: React.FC = () => {
   const [testResult, setTestResult] = useState<{ success: boolean; message: string; capturedText?: string } | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [diagnostics, setDiagnostics] = useState<DiagnosticsState>(localChatGPTExecutor.getDiagnostics());
+  const [isTestingImage, setIsTestingImage] = useState(false);
+  const [imageTestResult, setImageTestResult] = useState<{ success: boolean; message: string; assetUrl?: string; filename?: string } | null>(null);
+
+  const handleTestImageSession = async () => {
+    setIsTestingImage(true);
+    setImageTestResult(null);
+    try {
+      const res = await localChatGPTExecutor.runRealImageSessionTest();
+      setImageTestResult({
+        success: res.success,
+        message: res.message,
+        assetUrl: res.asset?.url,
+        filename: res.asset?.filename
+      });
+      setAiConfig(localDb.getAIConnection());
+    } catch (e: any) {
+      setImageTestResult({
+        success: false,
+        message: e.message || 'Real image session test failed.'
+      });
+    } finally {
+      setIsTestingImage(false);
+    }
+  };
 
   useEffect(() => {
     const unsubscribeConfig = localBrowserSession.subscribe(config => {
@@ -244,7 +268,17 @@ export const AIStudioView: React.FC = () => {
               style={{ flex: 1, height: '42px', fontSize: '0.875rem' }}
             >
               {isTesting ? <Loader2 size={16} className="animate-spin" /> : <Terminal size={16} />}
-              Run Real Session Test
+              Test Text Generation
+            </button>
+
+            <button 
+              className="btn btn-primary" 
+              onClick={handleTestImageSession} 
+              disabled={isTestingImage || !isSessionConnected}
+              style={{ flex: 1, height: '42px', fontSize: '0.875rem' }}
+            >
+              {isTestingImage ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+              Test Real Image Gen
             </button>
           </div>
 
@@ -272,6 +306,36 @@ export const AIStudioView: React.FC = () => {
                     <Code size={13} /> Captured Response Text:
                   </div>
                   {testResult.capturedText}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Test Real Image Result Banner */}
+          {imageTestResult && (
+            <div 
+              style={{ 
+                marginTop: '16px', 
+                padding: '14px 18px', 
+                borderRadius: 'var(--radius-sm)', 
+                background: imageTestResult.success ? 'var(--success-bg)' : 'var(--error-bg)', 
+                border: `1px solid ${imageTestResult.success ? 'rgba(53, 201, 139, 0.3)' : 'rgba(240, 93, 108, 0.3)'}`,
+                color: imageTestResult.success ? 'var(--success)' : 'var(--error)',
+                fontSize: '0.875rem'
+              }}
+            >
+              <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                {imageTestResult.success ? <CheckCircle2 size={16} /> : <AlertTriangle size={16} />}
+                {imageTestResult.success ? 'REAL CHATGPT IMAGE VERIFIED & DOWNLOADED' : '✕ Real Image Generation Failed'}
+              </div>
+              <div>{imageTestResult.message}</div>
+              {imageTestResult.assetUrl && (
+                <div style={{ marginTop: '12px', display: 'flex', gap: '14px', alignItems: 'center', background: 'rgba(0,0,0,0.2)', padding: '10px', borderRadius: '6px' }}>
+                  <img src={imageTestResult.assetUrl} alt="Generated Test Asset" style={{ width: '64px', height: '80px', objectFit: 'cover', borderRadius: '4px' }} />
+                  <div>
+                    <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#FFF' }}>Filename: {imageTestResult.filename}</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--success)' }}>✓ File verified & saved to Media Library</div>
+                  </div>
                 </div>
               )}
             </div>
