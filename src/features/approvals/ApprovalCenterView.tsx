@@ -16,6 +16,7 @@ import { Concept } from '../../domain/models/types';
 import { LocalSessionProvider } from '../../providers/ai/LocalSessionProvider';
 import { MockAIProvider } from '../../providers/ai/MockAIProvider';
 import { imageEngine } from '../../domain/services/ImageEngine';
+import { automationOrchestrator } from '../../domain/services/AutomationOrchestrator';
 
 interface ApprovalCenterViewProps {
   onEditConcept: (concept: Concept) => void;
@@ -61,6 +62,7 @@ export const ApprovalCenterView: React.FC<ApprovalCenterViewProps> = ({
 
   const handleBulkApprove = () => {
     localDb.bulkUpdateStatus(selectedIds, 'approved');
+    automationOrchestrator.enqueueBatch(selectedIds);
     setSelectedIds([]);
   };
 

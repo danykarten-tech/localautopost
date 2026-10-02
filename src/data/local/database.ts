@@ -10,7 +10,8 @@ import {
   ContentStatus,
   GenerationBatch,
   MediaAsset,
-  PublishJob 
+  PublishJob,
+  AutomationLogEvent 
 } from '../../domain/models/types';
 
 import { 
@@ -37,7 +38,8 @@ const STORAGE_KEYS = {
   THEME: 'avenzaq_theme',
   BATCHES: 'avenzaq_generation_batches',
   LAST_QUANTITY: 'avenzaq_last_quantity',
-  PUBLISH_JOBS: 'avenzaq_publish_jobs'
+  PUBLISH_JOBS: 'avenzaq_publish_jobs',
+  AUTOMATION_LOGS: 'avenzaq_automation_logs'
 };
 
 class LocalDatabase {
@@ -323,6 +325,27 @@ class LocalDatabase {
       updated = [job, ...current];
     }
     localStorage.setItem(STORAGE_KEYS.PUBLISH_JOBS, JSON.stringify(updated));
+    this.notify();
+  }
+
+  // Automation Logs (Phase 9)
+  public getAutomationLogs(): AutomationLogEvent[] {
+    const raw = localStorage.getItem(STORAGE_KEYS.AUTOMATION_LOGS);
+    return raw ? JSON.parse(raw) : [];
+  }
+
+  public addAutomationLog(event: Omit<AutomationLogEvent, 'id' | 'timestamp'> & { timestamp?: string }): void {
+    const current = this.getAutomationLogs();
+    const newLog: AutomationLogEvent = {
+      id: `log_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      timestamp: event.timestamp || new Date().toISOString(),
+      eventType: event.eventType,
+      message: event.message,
+      jobId: event.jobId,
+      details: event.details
+    };
+    const updated = [newLog, ...current.slice(0, 49)];
+    localStorage.setItem(STORAGE_KEYS.AUTOMATION_LOGS, JSON.stringify(updated));
     this.notify();
   }
 

@@ -345,14 +345,24 @@ export type LocalPublishingState =
   | 'UNKNOWN_PUBLISH_STATE';
 
 export type PublishJobStatus =
+  | 'DRAFT'
+  | 'APPROVED'
+  | 'QUEUED'
   | 'SCHEDULED'
-  | 'READY_TO_PUBLISH'
+  | 'READY'
+  | 'RUNNING'
+  | 'UPLOADING'
   | 'PUBLISHING'
+  | 'VERIFYING'
   | 'PUBLISHED'
-  | 'PUBLISH_FAILED'
-  | 'UNKNOWN_PUBLISH_STATE'
+  | 'FAILED'
+  | 'RETRY_WAIT'
   | 'ACTION_REQUIRED'
-  | 'CANCELLED';
+  | 'PAUSED'
+  | 'CANCELLED'
+  | 'UNKNOWN_PUBLISH_STATE'
+  | 'READY_TO_PUBLISH'
+  | 'PUBLISH_FAILED';
 
 export interface PublishJob {
   id: string;
@@ -364,13 +374,49 @@ export interface PublishJob {
   scheduledAt: string;
   caption: string;
   status: PublishJobStatus;
-  attemptCount: number;
-  createdAt: string;
-  updatedAt: string;
+  attempts: number;
+  maxAttempts: number;
+  attemptCount?: number;
+  lastAttemptAt?: string;
+  nextRetryAt?: string;
+  startedAt?: string;
+  completedAt?: string;
+  errorCode?: string;
+  errorMessage?: string;
   lastError?: string;
   publishedAt?: string;
   platformReference?: string;
   verificationStatus?: 'VERIFIED' | 'UNVERIFIED' | 'FAILED';
   idempotencyToken: string;
+  createdAt: string;
+  updatedAt: string;
   isTestMode?: boolean;
+}
+
+export type AutomationEventType =
+  | 'AUTOMATION_STARTED'
+  | 'AUTOMATION_PAUSED'
+  | 'AUTOMATION_RESUMED'
+  | 'AUTOMATION_STOPPED'
+  | 'JOB_QUEUED'
+  | 'JOB_STARTED'
+  | 'BROWSER_READY'
+  | 'SESSION_READY'
+  | 'UPLOAD_STARTED'
+  | 'UPLOAD_COMPLETED'
+  | 'PUBLISH_STARTED'
+  | 'PUBLISH_COMPLETED'
+  | 'PUBLISH_VERIFIED'
+  | 'JOB_FAILED'
+  | 'JOB_RETRY_SCHEDULED'
+  | 'ACTION_REQUIRED'
+  | 'AUTOMATION_RECOVERED';
+
+export interface AutomationLogEvent {
+  id: string;
+  timestamp: string;
+  jobId?: string;
+  eventType: AutomationEventType;
+  message: string;
+  details?: string;
 }

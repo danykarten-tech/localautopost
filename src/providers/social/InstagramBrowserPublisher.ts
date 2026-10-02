@@ -68,6 +68,8 @@ export class InstagramBrowserPublisher {
       scheduledAt: concept.scheduledDate ? `${concept.scheduledDate} ${concept.scheduledTime || '10:00 AM'}` : new Date().toISOString(),
       caption: concept.fullCaption || concept.hook,
       status: 'SCHEDULED',
+      attempts: 1,
+      maxAttempts: 3,
       attemptCount: 1,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
