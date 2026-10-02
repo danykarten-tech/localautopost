@@ -6,6 +6,7 @@ import {
 } from '../models/types';
 import { localDb } from '../../data/local/database';
 import { MockAIProvider } from '../../providers/ai/MockAIProvider';
+import { LocalSessionAIProvider } from '../../providers/ai/LocalSessionAIProvider';
 
 const CHUNK_SIZE = 10;
 export const MAX_SAFE_QUANTITY = 100;
@@ -37,6 +38,7 @@ export class ContentEngine {
 
     const totalQty = Math.max(1, request.quantity);
     const workspace = localDb.getWorkspace();
+    const aiConfig = localDb.getAIConnection();
 
     // Create Parent Generation Batch
     const batchId = request.generationBatchId || `batch_${Date.now()}`;
@@ -65,7 +67,9 @@ export class ContentEngine {
 
     const totalChunks = Math.ceil(totalQty / CHUNK_SIZE);
     const allGeneratedConcepts: Concept[] = [];
-    const aiProvider = new MockAIProvider();
+    const aiProvider = aiConfig.providerType === 'local_session' 
+      ? new LocalSessionAIProvider() 
+      : new MockAIProvider();
 
     for (let chunkIdx = 0; chunkIdx < totalChunks; chunkIdx++) {
       if (this.activeCancelTokens.has(batchId)) {
@@ -78,6 +82,8 @@ export class ContentEngine {
       }
 
       const currentChunkQty = Math.min(CHUNK_SIZE, totalQty - (chunkIdx * CHUNK_SIZE));
+      const brand = localDb.getBrand();
+      const toneVal = request.tone || brand.toneOfVoice || brand.brandTone || 'Artisanal & Intelligent';
       
       // Generate chunk
       const chunkConcepts = await aiProvider.generateConcepts({
@@ -86,8 +92,11 @@ export class ContentEngine {
         platform: request.platform,
         style: request.style,
         topic: request.topic,
-        tone: request.tone,
-        instructions: request.additionalInstructions
+        tone: toneVal,
+        instructions: request.additionalInstructions,
+        brandVoice: toneVal,
+        targetAudience: brand.targetAudience,
+        industry: workspace.industry
       });
 
       // Tag concepts with generationBatchId

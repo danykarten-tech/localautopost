@@ -14,6 +14,7 @@ import {
 import { localDb } from '../../data/local/database';
 import { Concept } from '../../domain/models/types';
 import { LocalSessionProvider } from '../../providers/ai/LocalSessionProvider';
+import { MockAIProvider } from '../../providers/ai/MockAIProvider';
 import { imageEngine } from '../../domain/services/ImageEngine';
 
 interface ApprovalCenterViewProps {
@@ -64,8 +65,11 @@ export const ApprovalCenterView: React.FC<ApprovalCenterViewProps> = ({
   };
 
   const handleBulkReject = () => {
-    localDb.bulkUpdateStatus(selectedIds, 'rejected');
-    setSelectedIds([]);
+    if (selectedIds.length === 0) return;
+    if (window.confirm(`Are you sure you want to reject ${selectedIds.length} selected concept(s)?`)) {
+      localDb.bulkUpdateStatus(selectedIds, 'rejected');
+      setSelectedIds([]);
+    }
   };
 
   const handleBulkGenerateImages = async () => {
@@ -93,13 +97,18 @@ export const ApprovalCenterView: React.FC<ApprovalCenterViewProps> = ({
   };
 
   const handleRegenerate = async (item: Concept) => {
-    const ai = new LocalSessionProvider();
+    const ai = new MockAIProvider();
+    const brand = localDb.getBrand();
+    const toneVal = brand.toneOfVoice || brand.brandTone || 'Artisanal & Intelligent';
     const [newConcept] = await ai.generateConcepts({
       objective: item.objective || 'Educational',
       quantity: 1,
       platform: item.platform || 'instagram',
       style: item.style || 'Minimal',
-      topic: item.title
+      topic: item.title,
+      tone: toneVal,
+      brandVoice: toneVal,
+      targetAudience: brand.targetAudience
     });
 
     localDb.updateConceptDetails(item.id, {
@@ -107,8 +116,13 @@ export const ApprovalCenterView: React.FC<ApprovalCenterViewProps> = ({
       hook: newConcept.hook,
       fullCaption: newConcept.fullCaption,
       captionPreview: newConcept.captionPreview,
-      visualUrl: newConcept.visualUrl
+      visualUrl: newConcept.visualUrl,
+      qualityScore: newConcept.qualityScore,
+      qualityIssues: newConcept.qualityIssues,
+      updatedAt: new Date().toISOString()
     });
+
+    localDb.logActivity('concept_generated', 'Concept Regenerated', `Regenerated content variation for "${item.title}".`);
   };
 
   return (

@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { localDb } from '../../data/local/database';
 import { contentEngine, MAX_SAFE_QUANTITY, GenerationProgressPayload } from '../../domain/services/ContentEngine';
+import { localBrowserSession } from '../../domain/services/LocalBrowserSession';
 import { Concept, ContentObjective, ContentStyle, GenerationBatch } from '../../domain/models/types';
 
 interface CreateContentFlowProps {
@@ -222,8 +223,30 @@ export const CreateContentFlow: React.FC<CreateContentFlowProps> = ({
       </div>
 
       {errorMessage && (
-        <div style={{ padding: '12px 16px', background: 'var(--error-bg)', border: '1px solid rgba(240, 93, 108, 0.3)', color: 'var(--error)', borderRadius: 'var(--radius-sm)', marginBottom: '20px', fontSize: '0.875rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <AlertTriangle size={16} /> {errorMessage}
+        <div style={{ padding: '16px 20px', background: 'var(--error-bg)', border: '1px solid rgba(240, 93, 108, 0.3)', color: 'var(--error)', borderRadius: 'var(--radius-md)', marginBottom: '20px', fontSize: '0.875rem', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}>
+            <AlertTriangle size={18} /> {errorMessage}
+          </div>
+          {errorMessage.toLowerCase().includes('disconnected') && (
+            <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
+              <button 
+                className="btn btn-primary btn-sm"
+                onClick={async () => {
+                  await localBrowserSession.connectSession();
+                  setErrorMessage('');
+                  handleGenerate();
+                }}
+              >
+                Reconnect Session & Retry
+              </button>
+              <button 
+                className="btn btn-secondary btn-sm"
+                onClick={() => setErrorMessage('')}
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -454,10 +477,23 @@ export const CreateContentFlow: React.FC<CreateContentFlowProps> = ({
               </div>
             </div>
 
-            <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '12px', fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <div>• Automatic Quality Scoring</div>
-              <div>• Structured Image Prompts</div>
-              <div>• Instant Approval Center Sync</div>
+            <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '12px', fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>AI Provider:</span>
+                <span style={{ color: 'var(--accent)', fontWeight: 600 }}>Mock Local Engine (MOCK)</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>Provider Status:</span>
+                <span style={{ color: 'var(--success)', fontWeight: 600 }}>READY (MOCK)</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>Brand Kit Context:</span>
+                <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>Active</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>Quality Validator:</span>
+                <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>Local Quality Validation</span>
+              </div>
             </div>
           </div>
         </div>

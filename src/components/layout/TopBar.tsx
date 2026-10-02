@@ -85,25 +85,52 @@ export const TopBar: React.FC<TopBarProps> = ({
           <ChevronDown size={14} style={{ color: 'var(--text-muted)' }} />
         </button>
 
-        {/* AI Session Status Pill */}
-        <div 
-          onClick={() => onNavigate('aistudio')}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: '3px 8px',
-            borderRadius: 'var(--radius-full)',
-            fontSize: '0.75rem',
-            backgroundColor: aiConnection.status === 'connected' ? 'var(--success-bg)' : 'var(--warning-bg)',
-            color: aiConnection.status === 'connected' ? 'var(--success)' : 'var(--warning)',
-            border: `1px solid ${aiConnection.status === 'connected' ? 'rgba(53, 201, 139, 0.3)' : 'rgba(244, 183, 64, 0.3)'}`,
-            cursor: 'pointer'
-          }}
-        >
-          <Zap size={11} />
-          <span>{aiConnection.status === 'connected' ? 'AI Session Active' : 'AI Needs Attention'}</span>
-        </div>
+        {/* AI Session Status Pill (Section 18) */}
+        {(() => {
+          const aiConn = localDb.getAIConnection();
+          let pillLabel = 'Mock Local AI';
+          let pillColor = 'var(--accent)';
+          let pillBg = 'var(--accent-alpha-10)';
+
+          if (aiConn.providerType === 'local_session') {
+            if (aiConn.sessionState === 'PROCESSING') {
+              pillLabel = 'ChatGPT Session Processing';
+              pillColor = 'var(--accent)';
+              pillBg = 'var(--accent-alpha-10)';
+            } else if (aiConn.status === 'connected' && aiConn.sessionState !== 'DISCONNECTED') {
+              pillLabel = 'ChatGPT Session Connected';
+              pillColor = 'var(--success)';
+              pillBg = 'var(--success-bg)';
+            } else {
+              pillLabel = 'ChatGPT Session Offline';
+              pillColor = 'var(--warning)';
+              pillBg = 'var(--warning-bg)';
+            }
+          }
+
+          return (
+            <div 
+              onClick={() => onNavigate('aistudio')}
+              title="Click to manage AI Session"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '3px 10px',
+                borderRadius: 'var(--radius-full)',
+                fontSize: '0.75rem',
+                backgroundColor: pillBg,
+                color: pillColor,
+                border: `1px solid ${pillColor}`,
+                cursor: 'pointer',
+                fontWeight: 600
+              }}
+            >
+              <Zap size={11} />
+              <span>{pillLabel}</span>
+            </div>
+          );
+        })()}
       </div>
 
       {/* Middle: Search / Command Shortcut */}

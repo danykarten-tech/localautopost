@@ -61,8 +61,11 @@ export interface Brand {
   description: string;
   targetAudience: string;
   brandTone: string;
+  toneOfVoice?: string;
   visualStyle: string;
   contentRules: string[];
+  contentPillars?: string[];
+  forbiddenKeywords?: string[];
 }
 
 export interface ImagePromptDetails {
@@ -278,15 +281,34 @@ export interface SocialAccount {
   isAvailableInPhase1: boolean;
 }
 
+export type SessionState = 
+  | 'DISCONNECTED'
+  | 'CONNECTING'
+  | 'BROWSER_READY'
+  | 'CHATGPT_OPEN'
+  | 'SESSION_READY'
+  | 'PROMPT_READY'
+  | 'PROCESSING'
+  | 'RESPONSE_READY'
+  | 'ERROR';
+
 export interface AIConnectionConfig {
   id: string;
-  providerType: 'local_session' | 'api_key' | 'mock';
+  providerType: 'mock' | 'local_session';
   providerName: string;
   status: 'connected' | 'not_connected' | 'needs_attention';
+  sessionState: SessionState;
+  browserStatus: 'Detected' | 'Not Detected';
+  chatgptSession: 'Ready' | 'Not Ready';
+  promptAutomation: 'Ready' | 'Not Ready';
+  responseCapture: 'Ready' | 'Not Ready';
   modelName: string;
   lastTested?: string;
+  lastTestSuccess?: boolean;
+  lastError?: string;
   environmentName: string;
   isSessionActive: boolean;
+  conceptsGeneratedToday: number;
 }
 
 export interface ActivityItem {

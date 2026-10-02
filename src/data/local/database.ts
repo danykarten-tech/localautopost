@@ -218,11 +218,12 @@ class LocalDatabase {
     return raw ? JSON.parse(raw) : SEED_AI_CONNECTION;
   }
 
-  public updateAIConnection(data: Partial<AIConnectionConfig>) {
+  public updateAIConnection(data: Partial<AIConnectionConfig>): AIConnectionConfig {
     const current = this.getAIConnection();
     const updated = { ...current, ...data };
     localStorage.setItem(STORAGE_KEYS.AI_CONNECTION, JSON.stringify(updated));
     this.notify();
+    return updated;
   }
 
   // Activities

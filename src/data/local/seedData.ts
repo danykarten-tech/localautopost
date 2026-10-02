@@ -41,13 +41,20 @@ export const SEED_BRAND: Brand = {
 
 export const SEED_AI_CONNECTION: AIConnectionConfig = {
   id: 'ai_conn_01',
-  providerType: 'local_session',
-  providerName: 'Local AI Session (Connected)',
+  providerType: 'mock',
+  providerName: 'Mock Local AI Generator (Demo Mode)',
   status: 'connected',
-  modelName: 'Avenzaq Local Model 2.5',
-  lastTested: 'Just now',
-  environmentName: 'Mac Studio Local Workstation',
-  isSessionActive: true
+  sessionState: 'SESSION_READY',
+  browserStatus: 'Detected',
+  chatgptSession: 'Ready',
+  promptAutomation: 'Ready',
+  responseCapture: 'Ready',
+  modelName: 'Local ChatGPT Session Engine',
+  lastTested: 'Never tested',
+  lastTestSuccess: false,
+  environmentName: 'Local Desktop Workstation Environment',
+  isSessionActive: true,
+  conceptsGeneratedToday: 0
 };
 
 export const SEED_SOCIAL_ACCOUNTS: SocialAccount[] = [

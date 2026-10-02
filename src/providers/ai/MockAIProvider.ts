@@ -2,6 +2,7 @@ import { AIProvider, AIStatus, GenerateConceptsRequest } from './AIProvider';
 import { Concept } from '../../domain/models/types';
 import { ImagePromptBuilder } from '../../domain/services/ImagePromptBuilder';
 import { ContentQualityValidator } from '../../domain/services/ContentQualityValidator';
+import { localDb } from '../../data/local/database';
 
 export class MockAIProvider implements AIProvider {
   id = 'mock';
@@ -10,9 +11,9 @@ export class MockAIProvider implements AIProvider {
   async getStatus(): Promise<AIStatus> {
     return {
       status: 'connected',
-      providerName: 'Mock Local AI Engine (Phase 3)',
+      providerName: 'Mock Local AI Engine (MOCK PROVIDER ACTIVE)',
       sessionActive: true,
-      message: 'Ready for local generation'
+      message: 'Generating simulated local concepts for workstation'
     };
   }
 
@@ -31,6 +32,15 @@ export class MockAIProvider implements AIProvider {
     const style = request.style || 'Minimal';
     const objective = request.objective || 'Educational';
 
+    // Retrieve Brand Kit Context & Workspace
+    const brand = localDb.getBrand();
+    const workspace = localDb.getWorkspace();
+    const brandVoice = request.brandVoice || brand.toneOfVoice || brand.brandTone || 'Artisanal, intelligent, warm';
+    const audience = request.targetAudience || brand.targetAudience || 'Discerning enthusiasts';
+    const pillarsList = brand.contentPillars || [];
+    const pillars = pillarsList.length > 0 ? pillarsList.join(', ') : 'Product craftsmanship, Education';
+    const forbiddenKws = brand.forbiddenKeywords || [];
+
     const sampleImages = [
       "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&w=800&q=80",
       "https://images.unsplash.com/photo-1559056199-641a0ac8b55e?auto=format&fit=crop&w=800&q=80",
@@ -40,22 +50,35 @@ export class MockAIProvider implements AIProvider {
       "https://images.unsplash.com/photo-1534778101976-62847782c213?auto=format&fit=crop&w=800&q=80"
     ];
 
-    const angleTemplates = [
-      { t: `3 Secrets to Master ${topic}`, h: `Stop burning your time with ${topic}! Here is the 30-second fix pros use.` },
-      { t: `Behind the Scenes: Crafting ${topic}`, h: `From raw ingredients to perfection — how we build our ${topic} experience.` },
-      { t: `${topic} Myth vs Reality`, h: `Think you know ${topic}? Here are 3 common misconceptions debunked.` },
-      { t: `The Essential Guide to ${topic}`, h: `Everything you need to know about ${topic} in one quick read.` },
-      { t: `Why ${topic} Matters More Than Ever`, h: `Here is how ${topic} is quietly transforming daily routines.` },
-      { t: `Top Mistakes to Avoid in ${topic}`, h: `Are you making these 3 common errors? Here is how to fix them.` },
-      { t: `The Science of Perfect ${topic}`, h: `Understanding the key principles behind consistent ${topic} quality.` },
-      { t: `5 Quick Wins for ${topic} Enthusiasts`, h: `Upgrade your daily ${topic} setup with these simple adjustments.` }
+    const anglePrefixes = [
+      "Mastering", "Behind the Scenes with", "3 Critical Myths About", 
+      "The Essential Guide to", "Why Top Creators Value", "Avoiding Costly Mistakes in", 
+      "The Science Behind Perfect", "5 Practical Upgrades for", "Unlocking Full Potential in", 
+      "An Insider's Perspective on", "Step-by-Step Breakdown of", "Transforming Your Daily Routine with",
+      "Core Fundamentals of", "The Golden Rule of", "Advanced Techniques in"
+    ];
+
+    const hookTemplates = [
+      `Stop burning your energy on outdated methods for {topic}. Here is the exact framework we use for {audience}.`,
+      `Did you know that 85% of people get {topic} completely wrong? Let's fix that today.`,
+      `Here is a peek behind the curtain of our {topic} process — tailored with {brandVoice} craftsmanship.`,
+      `If you care about {topic}, these 3 simple adjustments will change your results instantly.`,
+      `Why settle for average {topic} when you can achieve master-level quality in 3 minutes?`,
+      `We analyzed what makes {topic} truly stand out. Here are the 3 non-negotiables for {audience}.`
     ];
 
     for (let i = 0; i < count; i++) {
-      const template = angleTemplates[i % angleTemplates.length];
-      const batchSuffix = Math.floor(i / angleTemplates.length) > 0 ? ` (Vol. ${Math.floor(i / angleTemplates.length) + 1})` : '';
-      const title = `${template.t}${batchSuffix} #${i + 1}`;
-      const hook = template.h;
+      const prefix = anglePrefixes[i % anglePrefixes.length];
+      const cycle = Math.floor(i / anglePrefixes.length);
+      const cycleTag = cycle > 0 ? ` (Part ${cycle + 1})` : '';
+
+      const title = `${prefix} ${topic}${cycleTag}`;
+      
+      const rawHook = hookTemplates[i % hookTemplates.length];
+      const hook = rawHook
+        .replace(/{topic}/g, topic)
+        .replace(/{audience}/g, audience)
+        .replace(/{brandVoice}/g, brandVoice);
 
       const now = new Date();
       const scheduledDate = new Date(now.setDate(now.getDate() + i + 1)).toISOString().split('T')[0];
@@ -69,21 +92,20 @@ export class MockAIProvider implements AIProvider {
         contentType: i % 2 === 0 ? 'Carousel Post' : 'Single Image Post'
       });
 
-      const fullCaption = `${hook}\n\nWhen it comes to ${topic}, small details make all the difference. In this post, we share actionable insights tailored for ${request.tone || 'modern creators'}.\n\n3 Quick Takeaways:\n1. Focus on core fundamentals\n2. Maintain consistent quality standards\n3. Pay attention to subtle refinements\n\nWhat is your current approach to ${topic}? Share in the comments below! 👇`;
+      const fullCaption = `${hook}\n\nWhen exploring ${topic}, attention to detail defines the outcome. Crafted in our ${brandVoice} brand voice for ${audience}, this post breaks down key insights.\n\n3 Core Takeaways:\n1. Align with brand pillars: ${pillars}.\n2. Prioritize precise execution over shortcuts.\n3. Focus on consistent quality standards.\n\nWhat is your biggest takeaway regarding ${topic}? Let us know in the comments below! 👇`;
 
       const conceptPartial: Partial<Concept> = {
         title,
         hook,
         fullCaption,
-        cta: `Save this ${topic} guide for your next session!`,
-        hashtags: [`#${topic.replace(/\s+/g, '')}`, '#ContentCreator', '#AvenzaqAutopilot', `#${objective.replace(/\s+/g, '')}`]
+        cta: `Save & share this ${topic} guide with your team!`,
+        hashtags: [`#${topic.replace(/\s+/g, '')}`, `#${workspace.name.replace(/\s+/g, '')}`, '#AvenzaqAutopilot', `#${objective.replace(/\s+/g, '')}`]
       };
 
-      const qualityReport = ContentQualityValidator.validateConcept(conceptPartial, results);
+      const qualityReport = ContentQualityValidator.validateConcept(conceptPartial, results, forbiddenKws);
 
       results.push({
         id: `cncpt_${Date.now()}_${i}_${Math.random().toString(36).substr(2, 4)}`,
-        generationBatchId: request.brandVoice ? 'batch_custom' : undefined,
         conceptNumber: i + 1,
         title,
         hook,
@@ -92,7 +114,7 @@ export class MockAIProvider implements AIProvider {
         cta: conceptPartial.cta!,
         hashtags: conceptPartial.hashtags!,
         contentType: i % 2 === 0 ? 'Carousel Post' : 'Single Image Post',
-        visualDirection: `${style} aesthetic photography highlighting ${topic} with clean lighting.`,
+        visualDirection: `${style} aesthetic photography highlighting ${topic} with ${brandVoice} visual tone.`,
         imagePrompt,
         qualityScore: qualityReport.qualityScore,
         qualityIssues: qualityReport.qualityIssues,

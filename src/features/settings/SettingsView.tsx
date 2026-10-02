@@ -9,7 +9,8 @@ import {
   Sparkles,
   Image as ImageIcon,
   HardDrive,
-  Check
+  Check,
+  Zap
 } from 'lucide-react';
 import { localDb } from '../../data/local/database';
 import { imageEngine } from '../../domain/services/ImageEngine';
@@ -115,6 +116,74 @@ export const SettingsView: React.FC = () => {
               <Sun size={16} /> Light Theme
             </button>
           </div>
+        </div>
+
+        {/* Local ChatGPT Session Settings (Phase 6) */}
+        <div className="card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+            <h2 className="heading-md" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Zap size={18} style={{ color: 'var(--accent)' }} /> Local ChatGPT Session
+            </h2>
+            <span className="badge badge-approved">Phase 6 Active</span>
+          </div>
+
+          <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', marginBottom: '16px' }}>
+            Connect your local ChatGPT browser session to enable real prompt automation without cloud API keys or billing.
+          </p>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px', marginBottom: '20px' }}>
+            <div style={{ padding: '12px', background: 'var(--bg-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Connection Status</span>
+              <div style={{ fontSize: '0.875rem', fontWeight: 600, marginTop: '4px', color: localDb.getAIConnection().status === 'connected' ? 'var(--success)' : 'var(--warning)' }}>
+                ● {localDb.getAIConnection().status === 'connected' ? 'Connected' : 'Not Connected'}
+              </div>
+            </div>
+
+            <div style={{ padding: '12px', background: 'var(--bg-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Browser Status</span>
+              <div style={{ fontSize: '0.875rem', fontWeight: 600, marginTop: '4px', color: 'var(--text-primary)' }}>
+                ● {localDb.getAIConnection().browserStatus || 'Detected'}
+              </div>
+            </div>
+
+            <div style={{ padding: '12px', background: 'var(--bg-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>ChatGPT Session</span>
+              <div style={{ fontSize: '0.875rem', fontWeight: 600, marginTop: '4px', color: localDb.getAIConnection().chatgptSession === 'Ready' ? 'var(--success)' : 'var(--text-muted)' }}>
+                ● {localDb.getAIConnection().chatgptSession || 'Not Ready'}
+              </div>
+            </div>
+
+            <div style={{ padding: '12px', background: 'var(--bg-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Prompt Automation</span>
+              <div style={{ fontSize: '0.875rem', fontWeight: 600, marginTop: '4px', color: localDb.getAIConnection().promptAutomation === 'Ready' ? 'var(--accent)' : 'var(--text-muted)' }}>
+                ● {localDb.getAIConnection().promptAutomation || 'Not Ready'}
+              </div>
+            </div>
+
+            <div style={{ padding: '12px', background: 'var(--bg-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Response Capture</span>
+              <div style={{ fontSize: '0.875rem', fontWeight: 600, marginTop: '4px', color: localDb.getAIConnection().responseCapture === 'Ready' ? 'var(--accent)' : 'var(--text-muted)' }}>
+                ● {localDb.getAIConnection().responseCapture || 'Not Ready'}
+              </div>
+            </div>
+
+            <div style={{ padding: '12px', background: 'var(--bg-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>AI Provider Mode</span>
+              <div style={{ fontSize: '0.875rem', fontWeight: 600, marginTop: '4px', color: 'var(--text-primary)' }}>
+                {localDb.getAIConnection().providerType === 'mock' ? 'Mock Local AI (Demo)' : 'Local ChatGPT Session'}
+              </div>
+            </div>
+          </div>
+
+          <button 
+            className="btn btn-primary" 
+            onClick={() => {
+              localDb.updateAIConnection({ status: 'connected', sessionState: 'SESSION_READY', chatgptSession: 'Ready', promptAutomation: 'Ready', responseCapture: 'Ready' });
+              window.location.reload();
+            }}
+          >
+            Connect Local Session
+          </button>
         </div>
 
         {/* AI Image Engine Settings */}
