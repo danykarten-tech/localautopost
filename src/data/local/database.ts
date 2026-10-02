@@ -11,7 +11,8 @@ import {
   GenerationBatch,
   MediaAsset,
   PublishJob,
-  AutomationLogEvent 
+  AutomationLogEvent,
+  Campaign 
 } from '../../domain/models/types';
 
 import { 
@@ -39,7 +40,8 @@ const STORAGE_KEYS = {
   BATCHES: 'avenzaq_generation_batches',
   LAST_QUANTITY: 'avenzaq_last_quantity',
   PUBLISH_JOBS: 'avenzaq_publish_jobs',
-  AUTOMATION_LOGS: 'avenzaq_automation_logs'
+  AUTOMATION_LOGS: 'avenzaq_automation_logs',
+  CAMPAIGNS: 'avenzaq_campaigns'
 };
 
 class LocalDatabase {
@@ -368,6 +370,57 @@ class LocalDatabase {
     localStorage.setItem(STORAGE_KEYS.THEME, theme);
     document.documentElement.setAttribute('data-theme', theme);
     this.notify();
+  }
+
+  // Campaigns (Phase 10)
+  public getCampaigns(): Campaign[] {
+    const raw = localStorage.getItem(STORAGE_KEYS.CAMPAIGNS);
+    return raw ? JSON.parse(raw) : [];
+  }
+
+  public getCampaign(id: string): Campaign | undefined {
+    return this.getCampaigns().find(c => c.id === id);
+  }
+
+  public saveCampaign(campaign: Campaign): void {
+    const current = this.getCampaigns();
+    const idx = current.findIndex(c => c.id === campaign.id);
+    if (idx >= 0) {
+      current[idx] = { ...campaign, updatedAt: new Date().toISOString() };
+    } else {
+      current.push(campaign);
+    }
+    localStorage.setItem(STORAGE_KEYS.CAMPAIGNS, JSON.stringify(current));
+    this.notify();
+  }
+
+  public deleteCampaign(id: string): void {
+    const current = this.getCampaigns().filter(c => c.id !== id);
+    localStorage.setItem(STORAGE_KEYS.CAMPAIGNS, JSON.stringify(current));
+    this.notify();
+  }
+
+  public updateCampaignMetrics(campaignId: string): void {
+    const campaign = this.getCampaign(campaignId);
+    if (!campaign) return;
+
+    const concepts = this.getConcepts().filter(c => c.campaignId === campaignId || c.generationBatchId === campaignId);
+    const jobs = this.getPublishJobs().filter(j => j.campaignId === campaignId);
+
+    campaign.approvedConceptCount = concepts.filter(c => c.status === 'approved' || c.status === 'scheduled' || c.status === 'published').length;
+    campaign.generatedAssetCount = concepts.filter(c => !!c.attachedMediaId || !!c.visualUrl).length;
+    campaign.scheduledPostCount = jobs.filter(j => j.status === 'SCHEDULED' || j.status === 'QUEUED' || j.status === 'READY').length;
+    campaign.publishedPostCount = jobs.filter(j => j.status === 'PUBLISHED').length;
+    campaign.failedPostCount = jobs.filter(j => j.status === 'FAILED' || j.status === 'PUBLISH_FAILED').length;
+
+    // Determine status update if active
+    if (jobs.some(j => j.status === 'ACTION_REQUIRED')) {
+      campaign.status = 'ACTION_REQUIRED';
+    } else if (campaign.publishedPostCount > 0 && campaign.publishedPostCount === concepts.length) {
+      campaign.status = 'COMPLETED';
+    }
+
+    this.saveCampaign(campaign);
   }
 }
 

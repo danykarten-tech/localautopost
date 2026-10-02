@@ -12,7 +12,8 @@ import {
   Cpu, 
   BarChart3, 
   Settings, 
-  HelpCircle 
+  HelpCircle,
+  Layers 
 } from 'lucide-react';
 import { AvenzaqLogo } from '../common/AvenzaqLogo';
 import { localDb } from '../../data/local/database';
@@ -32,7 +33,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const mainNav = [
     { id: 'dashboard', label: 'Overview', icon: LayoutDashboard },
-    { id: 'create', label: 'Create', icon: Sparkles, highlight: true },
+    { id: 'campaigns', label: 'Campaigns', icon: Layers, highlight: true },
+    { id: 'create', label: 'Create', icon: Sparkles },
     { id: 'content', label: 'Content', icon: FileText },
     { id: 'approvals', label: 'Approvals', icon: CheckCircle2, badge: pendingCount > 0 ? pendingCount : undefined },
     { id: 'calendar', label: 'Calendar', icon: Calendar },

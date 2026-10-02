@@ -17,6 +17,7 @@ import { AIStudioView } from './features/aistudio/AIStudioView';
 import { AnalyticsView } from './features/analytics/AnalyticsView';
 import { SettingsView } from './features/settings/SettingsView';
 import { HelpCenterView } from './features/help/HelpCenterView';
+import { CampaignsView } from './features/campaigns/CampaignsView';
 
 import { localDb } from './data/local/database';
 import { Concept } from './domain/models/types';
@@ -53,6 +54,8 @@ export function App() {
             onEditConcept={setActiveEditingConcept}
           />
         );
+      case 'campaigns':
+        return <CampaignsView />;
       case 'create':
         return (
           <CreateContentFlow

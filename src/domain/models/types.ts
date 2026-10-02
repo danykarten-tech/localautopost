@@ -82,6 +82,7 @@ export interface ImagePromptDetails {
 export interface Concept {
   id: string;
   generationBatchId?: string;
+  campaignId?: string;
   conceptNumber: number;
   title: string;
   hook: string;
@@ -368,6 +369,7 @@ export interface PublishJob {
   id: string;
   publishJobId: string;
   conceptId: string;
+  campaignId?: string;
   mediaId: string;
   platform: PlatformType;
   accountId: string;
@@ -419,4 +421,38 @@ export interface AutomationLogEvent {
   eventType: AutomationEventType;
   message: string;
   details?: string;
+}
+
+export type CampaignStatus = 
+  | 'DRAFT'
+  | 'GENERATING_CONCEPTS'
+  | 'AWAITING_APPROVAL'
+  | 'GENERATING_ASSETS'
+  | 'READY_TO_SCHEDULE'
+  | 'SCHEDULED'
+  | 'RUNNING'
+  | 'COMPLETED'
+  | 'PAUSED'
+  | 'ACTION_REQUIRED'
+  | 'FAILED';
+
+export interface Campaign {
+  id: string;
+  workspaceId: string;
+  name: string;
+  description: string;
+  platform: PlatformType;
+  objective: ContentObjective;
+  targetConceptCount: number;
+  approvedConceptCount: number;
+  generatedAssetCount: number;
+  scheduledPostCount: number;
+  publishedPostCount: number;
+  failedPostCount: number;
+  status: CampaignStatus;
+  startDate?: string;
+  postingIntervalHours?: number;
+  lastError?: string;
+  createdAt: string;
+  updatedAt: string;
 }
