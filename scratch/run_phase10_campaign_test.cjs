@@ -8,11 +8,11 @@ global.localStorage = {
 };
 
 async function runPhase10TestSuite() {
-  const { localDb } = await import('./dist/data/local/database.js');
-  const { localBrowserBridge } = await import('./dist/domain/services/LocalBrowserBridge.js');
-  const { instagramBrowserPublisher } = await import('./dist/providers/social/InstagramBrowserPublisher.js');
-  const { automationOrchestrator } = await import('./dist/domain/services/AutomationOrchestrator.js');
-  const { campaignEngine } = await import('./dist/domain/services/CampaignEngine.js');
+  const { localDb } = await import('../src/data/local/database.ts');
+  const { localBrowserBridge } = await import('../src/domain/services/LocalBrowserBridge.ts');
+  const { instagramBrowserPublisher } = await import('../src/providers/social/InstagramBrowserPublisher.ts');
+  const { automationOrchestrator } = await import('../src/domain/services/AutomationOrchestrator.ts');
+  const { campaignEngine } = await import('../src/domain/services/CampaignEngine.ts');
 
   console.log('====================================================');
   console.log('PHASE 10 — BATCH CAMPAIGN AUTOMATION TEST SUITE');

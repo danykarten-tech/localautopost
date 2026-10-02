@@ -44,6 +44,16 @@ const STORAGE_KEYS = {
   CAMPAIGNS: 'avenzaq_campaigns'
 };
 
+if (typeof localStorage === 'undefined') {
+  const store: Record<string, string> = {};
+  (globalThis as any).localStorage = {
+    getItem: (k: string) => store[k] || null,
+    setItem: (k: string, v: string) => { store[k] = String(v); },
+    removeItem: (k: string) => { delete store[k]; },
+    clear: () => { Object.keys(store).forEach(k => delete store[k]); }
+  };
+}
+
 class LocalDatabase {
   private listeners: (() => void)[] = [];
 
@@ -211,11 +221,15 @@ class LocalDatabase {
     return raw ? JSON.parse(raw) : SEED_SOCIAL_ACCOUNTS;
   }
 
+  public saveSocialAccounts(accounts: SocialAccount[]) {
+    localStorage.setItem(STORAGE_KEYS.SOCIAL_ACCOUNTS, JSON.stringify(accounts));
+    this.notify();
+  }
+
   public updateSocialAccountStatus(id: string, status: 'connected' | 'not_connected' | 'needs_attention') {
     const current = this.getSocialAccounts();
     const updated = current.map(s => (s.id === id ? { ...s, status } : s));
-    localStorage.setItem(STORAGE_KEYS.SOCIAL_ACCOUNTS, JSON.stringify(updated));
-    this.notify();
+    this.saveSocialAccounts(updated);
   }
 
   // AI Connection
@@ -224,12 +238,16 @@ class LocalDatabase {
     return raw ? JSON.parse(raw) : SEED_AI_CONNECTION;
   }
 
+  public saveAIConnection(data: AIConnectionConfig): AIConnectionConfig {
+    localStorage.setItem(STORAGE_KEYS.AI_CONNECTION, JSON.stringify(data));
+    this.notify();
+    return data;
+  }
+
   public updateAIConnection(data: Partial<AIConnectionConfig>): AIConnectionConfig {
     const current = this.getAIConnection();
     const updated = { ...current, ...data };
-    localStorage.setItem(STORAGE_KEYS.AI_CONNECTION, JSON.stringify(updated));
-    this.notify();
-    return updated;
+    return this.saveAIConnection(updated);
   }
 
   // Activities

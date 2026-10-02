@@ -10,6 +10,10 @@ import {
   MediaAsset 
 } from '../models/types';
 import { ImageValidator } from './ImageValidator';
+import { localBrowserManager } from './browser/LocalBrowserManager';
+import { chatGPTBrowserConnector } from './browser/ChatGPTBrowserConnector';
+import { instagramBrowserConnector } from './browser/InstagramBrowserConnector';
+import { automationReadinessGate } from './browser/AutomationReadinessGate';
 
 export interface OrchestratorSummary {
   runtimeStatus: 'RUNNING' | 'PAUSED' | 'STOPPED';
@@ -354,11 +358,14 @@ export class AutomationOrchestratorService {
     const todayStr = new Date().toISOString().slice(0, 10);
     const todayJobs = jobs.filter(j => j.createdAt && j.createdAt.startsWith(todayStr));
 
+    const browserStatus = localBrowserManager.getStatus();
+    const instaState = instagramBrowserConnector.getState();
+
     return {
       runtimeStatus: this.runtimeStatus,
       isTestMode: this.isTestMode,
-      browserStatus: aiConn.browserStatus === 'Detected' ? 'Connected' : 'Not Connected',
-      instagramStatus: 'Authenticated',
+      browserStatus: browserStatus.isProcessRunning ? 'Connected' : 'Not Connected',
+      instagramStatus: instaState.isReady ? 'Authenticated' : instaState.status === 'INSTAGRAM_LOGIN_REQUIRED' ? 'Login Required' : 'Action Required',
       currentJob: activeJob,
       queueSize: queue.length,
       todayStats: {

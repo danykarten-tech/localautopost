@@ -15,17 +15,29 @@ import {
   RefreshCw,
   ExternalLink,
   ShieldCheck,
-  Activity
+  Activity,
+  Globe,
+  Monitor,
+  KeyRound
 } from 'lucide-react';
 import { localDb } from '../../data/local/database';
 import { automationService } from '../../domain/services/AutomationService';
 import { automationOrchestrator, OrchestratorSummary } from '../../domain/services/AutomationOrchestrator';
+import { localBrowserManager, LocalBrowserStatus } from '../../domain/services/browser/LocalBrowserManager';
+import { chatGPTBrowserConnector, ChatGPTConnectorState } from '../../domain/services/browser/ChatGPTBrowserConnector';
+import { instagramBrowserConnector, InstagramConnectorState } from '../../domain/services/browser/InstagramBrowserConnector';
+import { automationReadinessGate, ReadinessEvaluation } from '../../domain/services/browser/AutomationReadinessGate';
 import { AutomationRule, PublishJob, Concept } from '../../domain/models/types';
 
 export const AutomationView: React.FC = () => {
   const [automation, setAutomation] = useState(localDb.getAutomation());
   const [rules, setRules] = useState<AutomationRule[]>(automationService.getRules());
   const [summary, setSummary] = useState<OrchestratorSummary>(automationOrchestrator.getOrchestratorSummary());
+
+  const [browserStatus, setBrowserStatus] = useState<LocalBrowserStatus>(localBrowserManager.getStatus());
+  const [cgState, setCgState] = useState<ChatGPTConnectorState>(chatGPTBrowserConnector.getState());
+  const [instaState, setInstaState] = useState<InstagramConnectorState>(instagramBrowserConnector.getState());
+  const [readiness, setReadiness] = useState<ReadinessEvaluation | null>(null);
 
   const [newRuleName, setNewRuleName] = useState('');
   const [newRuleFreq, setNewRuleFreq] = useState('Daily');
@@ -36,14 +48,71 @@ export const AutomationView: React.FC = () => {
 
   // Subscribe / Poll Orchestrator Status every second
   useEffect(() => {
-    const timer = setInterval(() => {
+    const timer = setInterval(async () => {
       setSummary(automationOrchestrator.getOrchestratorSummary());
+      setBrowserStatus(localBrowserManager.getStatus());
+      setCgState(chatGPTBrowserConnector.getState());
+      setInstaState(instagramBrowserConnector.getState());
+
+      const ev = await automationReadinessGate.evaluateGenerationReadiness().catch(() => null);
+      setReadiness(ev);
     }, 1000);
     return () => clearInterval(timer);
   }, []);
 
-  const refreshSummary = () => {
+  const refreshSummary = async () => {
     setSummary(automationOrchestrator.getOrchestratorSummary());
+    setBrowserStatus(localBrowserManager.getStatus());
+    await chatGPTBrowserConnector.checkSession().catch(() => {});
+    await instagramBrowserConnector.checkSession().catch(() => {});
+    setCgState(chatGPTBrowserConnector.getState());
+    setInstaState(instagramBrowserConnector.getState());
+  };
+
+  const handleLaunchBrowser = async () => {
+    try {
+      setRunMessage('Launching persistent local browser process...');
+      await localBrowserManager.launch({ headless: false });
+      setBrowserStatus(localBrowserManager.getStatus());
+      await refreshSummary();
+      setRunMessage('Local browser process launched cleanly.');
+      setTimeout(() => setRunMessage(''), 3000);
+    } catch (e: any) {
+      alert(`Browser launch error: ${e.message}`);
+    }
+  };
+
+  const handleRestartBrowser = async () => {
+    try {
+      setRunMessage('Restarting local browser process...');
+      await localBrowserManager.restart();
+      setBrowserStatus(localBrowserManager.getStatus());
+      await refreshSummary();
+      setRunMessage('Browser process restarted.');
+      setTimeout(() => setRunMessage(''), 3000);
+    } catch (e: any) {
+      alert(`Restart error: ${e.message}`);
+    }
+  };
+
+  const handleCloseBrowser = async () => {
+    await localBrowserManager.close();
+    setBrowserStatus(localBrowserManager.getStatus());
+    await refreshSummary();
+  };
+
+  const handleOpenChatGPTLogin = async () => {
+    await chatGPTBrowserConnector.openManualLogin();
+    setCgState(chatGPTBrowserConnector.getState());
+    setRunMessage('Opened ChatGPT in browser window. Please complete manual login.');
+    setTimeout(() => setRunMessage(''), 4000);
+  };
+
+  const handleOpenInstagramLogin = async () => {
+    await instagramBrowserConnector.openManualLogin();
+    setInstaState(instagramBrowserConnector.getState());
+    setRunMessage('Opened Instagram in browser window. Please complete manual login.');
+    setTimeout(() => setRunMessage(''), 4000);
   };
 
   const handleToggleMaster = () => {
@@ -55,11 +124,6 @@ export const AutomationView: React.FC = () => {
     } else {
       automationOrchestrator.stopWorker();
     }
-    refreshSummary();
-  };
-
-  const handleStartOrchestrator = () => {
-    automationOrchestrator.startWorker();
     refreshSummary();
   };
 
@@ -132,7 +196,6 @@ export const AutomationView: React.FC = () => {
     refreshSummary();
   };
 
-  // Helper to find concept metadata for a publish job
   const getConceptForJob = (job?: PublishJob): Concept | undefined => {
     if (!job) return undefined;
     return localDb.getConcepts().find(c => c.id === job.conceptId);
@@ -157,7 +220,7 @@ export const AutomationView: React.FC = () => {
             <Activity size={26} style={{ color: 'var(--accent)' }} /> Local Automation Orchestrator
           </h1>
           <p className="text-secondary" style={{ fontSize: '0.9375rem', marginTop: '4px' }}>
-            Production local publishing worker managing approved social queues with zero remote APIs.
+            Production local browser connection & session control workstation.
           </p>
         </div>
 
@@ -222,26 +285,93 @@ export const AutomationView: React.FC = () => {
         </div>
       )}
 
-      {/* Local Mode Notice */}
-      <div 
-        style={{
-          padding: '14px 18px',
-          borderRadius: 'var(--radius-md)',
-          backgroundColor: 'var(--accent-alpha-10)',
-          border: '1px solid var(--accent-alpha-20)',
-          marginBottom: '20px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px'
-        }}
-      >
-        <CloudOff size={22} style={{ color: 'var(--accent)', flexShrink: 0 }} />
-        <div>
-          <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-            Local Browser Orchestration — Zero Meta/Instagram API Keys
+      {/* REAL LOCAL CONNECTIONS CENTER PANEL */}
+      <div className="card" style={{ padding: '24px', marginBottom: '24px', background: 'var(--bg-secondary)', border: '1px solid var(--accent-alpha-20)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
+          <h2 className="heading-md" style={{ fontSize: '1.2rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Monitor size={20} style={{ color: 'var(--accent)' }} /> Real Local Browser & Session Control Center
+          </h2>
+          <button className="btn btn-secondary btn-sm" onClick={refreshSummary}>
+            <RefreshCw size={14} /> Refresh Sessions
+          </button>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+          {/* 1. Local Browser Process */}
+          <div style={{ background: 'var(--bg-elevated)', padding: '16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>LOCAL BROWSER PROCESS</span>
+              <span className={`badge ${browserStatus.isProcessRunning ? 'badge-success' : 'badge-error'}`}>
+                {browserStatus.isProcessRunning ? 'RUNNING' : 'STOPPED'}
+              </span>
+            </div>
+            <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+              Profile: <code style={{ fontSize: '0.75rem' }}>{browserStatus.profilePath.slice(-30)}</code>
+            </div>
+            <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', marginBottom: '12px' }}>
+              Active Pages: <strong>{browserStatus.activePagesCount}</strong> • Health: <strong style={{ color: 'var(--success)' }}>{browserStatus.health}</strong>
+            </div>
+
+            <div style={{ display: 'flex', gap: '6px' }}>
+              {!browserStatus.isProcessRunning ? (
+                <button className="btn btn-primary btn-sm" onClick={handleLaunchBrowser}>
+                  Launch Browser
+                </button>
+              ) : (
+                <>
+                  <button className="btn btn-secondary btn-sm" onClick={handleRestartBrowser}>
+                    Restart
+                  </button>
+                  <button className="btn btn-secondary btn-sm" style={{ color: 'var(--error)' }} onClick={handleCloseBrowser}>
+                    Close
+                  </button>
+                </>
+              )}
+            </div>
           </div>
-          <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
-            Continuous local worker ticks every 1.5s, acquires publishing lock, and publishes via local browser session while computer is running.
+
+          {/* 2. ChatGPT Real Session */}
+          <div style={{ background: 'var(--bg-elevated)', padding: '16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>CHATGPT REAL SESSION</span>
+              <span className={`badge ${cgState.isReady ? 'badge-success' : cgState.requiresManualLogin ? 'badge-pending' : 'badge-error'}`}>
+                {cgState.status}
+              </span>
+            </div>
+            <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+              Session: <strong>{cgState.isReady ? 'Authenticated' : 'Login Required'}</strong>
+            </div>
+            <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', marginBottom: '12px', lineClamp: 1, textOverflow: 'ellipsis', overflow: 'hidden' }}>
+              URL: {cgState.currentUrl || 'Not opened'}
+            </div>
+
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <button className="btn btn-primary btn-sm" onClick={handleOpenChatGPTLogin}>
+                <KeyRound size={12} /> Open ChatGPT Login
+              </button>
+            </div>
+          </div>
+
+          {/* 3. Instagram Real Session */}
+          <div style={{ background: 'var(--bg-elevated)', padding: '16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>INSTAGRAM REAL SESSION</span>
+              <span className={`badge ${instaState.isReady ? 'badge-success' : instaState.requiresManualLogin ? 'badge-pending' : 'badge-error'}`}>
+                {instaState.status}
+              </span>
+            </div>
+            <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+              Session: <strong>{instaState.isReady ? 'Authenticated' : 'Login Required'}</strong>
+            </div>
+            <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', marginBottom: '12px', lineClamp: 1, textOverflow: 'ellipsis', overflow: 'hidden' }}>
+              URL: {instaState.currentUrl || 'Not opened'}
+            </div>
+
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <button className="btn btn-primary btn-sm" onClick={handleOpenInstagramLogin}>
+                <KeyRound size={12} /> Open Instagram Login
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -411,156 +541,6 @@ export const AutomationView: React.FC = () => {
           )}
         </div>
       </div>
-
-      {/* Main Grid: Visual Workflow & Local Rules Management */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '28px' }}>
-        {/* Active Workflow Nodes */}
-        <div className="card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <h2 className="heading-md" style={{ marginBottom: '20px', width: '100%' }}>Visual Workflow Pipeline</h2>
-
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', width: '100%', maxWidth: '440px' }}>
-            {workflowNodes.map((node, index) => (
-              <React.Fragment key={node.id}>
-                <div
-                  style={{
-                    width: '100%',
-                    padding: '14px 16px',
-                    borderRadius: 'var(--radius-md)',
-                    backgroundColor: 'var(--bg-elevated)',
-                    border: node.type === 'condition' ? '1px solid var(--warning)' : '1px solid var(--border-color)',
-                    boxShadow: 'var(--shadow-sm)'
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-                      STEP 0{index + 1} • {node.type}
-                    </div>
-                    {node.type === 'condition' && <span className="badge badge-pending">SAFETY GATE</span>}
-                  </div>
-                  <div style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--text-primary)', marginTop: '4px' }}>
-                    {node.title}
-                  </div>
-                  <div style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                    {node.subtitle}
-                  </div>
-                </div>
-
-                {index < workflowNodes.length - 1 && (
-                  <ArrowDown size={16} style={{ color: 'var(--accent)', margin: '2px 0' }} />
-                )}
-              </React.Fragment>
-            ))}
-          </div>
-        </div>
-
-        {/* Local Rules Management */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <div className="card">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h2 className="heading-md">Local Automation Rules ({rules.length})</h2>
-              <button className="btn btn-primary btn-sm" onClick={() => setShowAddModal(true)}>
-                <Plus size={14} /> Add Rule
-              </button>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {rules.map(rule => (
-                <div 
-                  key={rule.id}
-                  style={{
-                    padding: '14px',
-                    borderRadius: 'var(--radius-sm)',
-                    backgroundColor: 'var(--bg-elevated)',
-                    border: '1px solid var(--border-color)',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
-                  }}
-                >
-                  <div>
-                    <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-primary)' }}>{rule.name}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                      {rule.frequency} at {rule.time} • Action: <strong style={{ color: 'var(--accent)' }}>{rule.action}</strong>
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <button
-                      onClick={() => handleToggleRule(rule.id, rule.isEnabled)}
-                      style={{
-                        padding: '4px 10px',
-                        borderRadius: 'var(--radius-full)',
-                        fontSize: '0.75rem',
-                        fontWeight: 600,
-                        backgroundColor: rule.isEnabled ? 'var(--success-bg)' : 'var(--bg-primary)',
-                        color: rule.isEnabled ? 'var(--success)' : 'var(--text-muted)',
-                        border: `1px solid ${rule.isEnabled ? 'rgba(53, 201, 139, 0.3)' : 'var(--border-color)'}`
-                      }}
-                    >
-                      {rule.isEnabled ? 'ON' : 'OFF'}
-                    </button>
-
-                    <button className="btn btn-ghost btn-sm" style={{ color: 'var(--error)' }} onClick={() => handleDeleteRule(rule.id)}>
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Add Rule Modal */}
-      {showAddModal && (
-        <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
-          <div className="modal-box" style={{ maxWidth: '480px' }} onClick={e => e.stopPropagation()}>
-            <h3 className="heading-md" style={{ marginBottom: '16px' }}>Create Local Automation Rule</h3>
-            <form onSubmit={handleAddRule} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div>
-                <label style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', marginBottom: '4px', display: 'block' }}>Rule Name</label>
-                <input
-                  className="input-field"
-                  value={newRuleName}
-                  onChange={e => setNewRuleName(e.target.value)}
-                  placeholder="e.g. Daily Content Generation"
-                  required
-                />
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div>
-                  <label style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', marginBottom: '4px', display: 'block' }}>Frequency</label>
-                  <select className="input-field" value={newRuleFreq} onChange={e => setNewRuleFreq(e.target.value)}>
-                    <option value="Daily">Daily</option>
-                    <option value="Weekly">Weekly</option>
-                    <option value="3x per week">3x per week</option>
-                    <option value="Realtime">Realtime</option>
-                  </select>
-                </div>
-                <div>
-                  <label style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', marginBottom: '4px', display: 'block' }}>Trigger Time</label>
-                  <input className="input-field" value={newRuleTime} onChange={e => setNewRuleTime(e.target.value)} />
-                </div>
-              </div>
-
-              <div>
-                <label style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', marginBottom: '4px', display: 'block' }}>Automation Action</label>
-                <select className="input-field" value={newRuleAction} onChange={e => setNewRuleAction(e.target.value)}>
-                  <option value="Generate Content">Generate Content</option>
-                  <option value="Move to Scheduled">Move Approved to Scheduled</option>
-                  <option value="Publish Queue">Publish Local Queue</option>
-                </select>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '12px' }}>
-                <button type="button" className="btn btn-secondary" onClick={() => setShowAddModal(false)}>Cancel</button>
-                <button type="submit" className="btn btn-primary">Create Rule</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

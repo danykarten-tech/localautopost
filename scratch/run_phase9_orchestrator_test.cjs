@@ -8,10 +8,10 @@ global.localStorage = {
 };
 
 async function runPhase9TestSuite() {
-  const { localDb } = await import('./dist/data/local/database.js');
-  const { localBrowserBridge } = await import('./dist/domain/services/LocalBrowserBridge.js');
-  const { instagramBrowserPublisher } = await import('./dist/providers/social/InstagramBrowserPublisher.js');
-  const { automationOrchestrator } = await import('./dist/domain/services/AutomationOrchestrator.js');
+  const { localDb } = await import('../src/data/local/database.ts');
+  const { localBrowserBridge } = await import('../src/domain/services/LocalBrowserBridge.ts');
+  const { instagramBrowserPublisher } = await import('../src/providers/social/InstagramBrowserPublisher.ts');
+  const { automationOrchestrator } = await import('../src/domain/services/AutomationOrchestrator.ts');
 
   console.log('====================================================');
   console.log('PHASE 9 — LOCAL AUTOMATION ORCHESTRATOR TEST SUITE');
@@ -31,6 +31,7 @@ async function runPhase9TestSuite() {
   }
 
   // Setup initial mock database state
+  localDb.resetToDefaults();
   localDb.addConcepts([
     {
       id: 'c_approved_1',
