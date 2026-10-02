@@ -10,23 +10,32 @@ import {
   Zap, 
   Terminal, 
   AlertTriangle,
-  Loader2
+  Loader2,
+  Code
 } from 'lucide-react';
 import { localDb } from '../../data/local/database';
 import { localBrowserSession } from '../../domain/services/LocalBrowserSession';
+import { localChatGPTExecutor, DiagnosticsState, DiagnosticItemStatus } from '../../domain/services/LocalChatGPTExecutor';
 import { AIConnectionConfig } from '../../domain/models/types';
 
 export const AIStudioView: React.FC = () => {
   const [aiConfig, setAiConfig] = useState<AIConnectionConfig>(localDb.getAIConnection());
   const [isTesting, setIsTesting] = useState(false);
-  const [testResult, setTestResult] = useState<{ success: boolean; message: string; responseText?: string } | null>(null);
+  const [testResult, setTestResult] = useState<{ success: boolean; message: string; capturedText?: string } | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [diagnostics, setDiagnostics] = useState<DiagnosticsState>(localChatGPTExecutor.getDiagnostics());
 
   useEffect(() => {
-    const unsubscribe = localBrowserSession.subscribe(config => {
+    const unsubscribeConfig = localBrowserSession.subscribe(config => {
       setAiConfig(config);
     });
-    return unsubscribe;
+    const unsubscribeDiag = localChatGPTExecutor.subscribeDiagnostics(diag => {
+      setDiagnostics(diag);
+    });
+    return () => {
+      unsubscribeConfig();
+      unsubscribeDiag();
+    };
   }, []);
 
   const handleSwitchMode = (mode: 'mock' | 'local_session') => {
@@ -53,8 +62,9 @@ export const AIStudioView: React.FC = () => {
     setIsTesting(true);
     setTestResult(null);
     try {
-      const res = await localBrowserSession.testSession();
+      const res = await localChatGPTExecutor.runRealSessionTest();
       setTestResult(res);
+      setAiConfig(localDb.getAIConnection());
     } catch (e: any) {
       setTestResult({
         success: false,
@@ -67,12 +77,26 @@ export const AIStudioView: React.FC = () => {
 
   const isSessionConnected = aiConfig.status === 'connected' && aiConfig.sessionState !== 'DISCONNECTED';
 
+  const renderDiagnosticBadge = (status: DiagnosticItemStatus) => {
+    switch (status) {
+      case 'PASSED':
+        return <span style={{ color: 'var(--success)', fontWeight: 600 }}>✓ PASSED</span>;
+      case 'CHECKING':
+        return <span style={{ color: 'var(--accent)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}><Loader2 size={12} className="animate-spin" /> CHECKING</span>;
+      case 'FAILED':
+        return <span style={{ color: 'var(--error)', fontWeight: 600 }}>✕ FAILED</span>;
+      case 'NOT TESTED':
+      default:
+        return <span style={{ color: 'var(--text-muted)', fontWeight: 500 }}>NOT TESTED</span>;
+    }
+  };
+
   return (
     <div style={{ padding: '28px 32px', maxWidth: '1240px', margin: '0 auto' }}>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
         <div>
-          <h1 className="heading-lg" style={{ fontSize: '1.75rem' }}>AI Session</h1>
+          <h1 className="heading-lg" style={{ fontSize: '1.75rem' }}>AI Session Control Center</h1>
           <p className="text-secondary" style={{ fontSize: '0.9375rem', marginTop: '4px' }}>
             Manage your local ChatGPT automation session and AI provider architecture.
           </p>
@@ -80,13 +104,15 @@ export const AIStudioView: React.FC = () => {
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <span 
-            className={`badge ${isSessionConnected ? 'badge-approved' : 'badge-draft'}`}
+            className={`badge ${aiConfig.lastTestSuccess && isSessionConnected ? 'badge-approved' : 'badge-draft'}`}
             style={{ padding: '6px 12px', fontSize: '0.8125rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
           >
             <Zap size={14} />
             {aiConfig.providerType === 'mock' 
               ? 'MOCK LOCAL AI (DEMO)' 
-              : (isSessionConnected ? 'LOCAL CHATGPT CONNECTED' : 'CHATGPT SESSION OFFLINE')}
+              : (aiConfig.lastTestSuccess && isSessionConnected 
+                  ? 'REAL CHATGPT SESSION VERIFIED' 
+                  : (isSessionConnected ? 'LOCAL CHATGPT CONNECTED' : 'CHATGPT SESSION OFFLINE'))}
           </span>
         </div>
       </div>
@@ -218,7 +244,7 @@ export const AIStudioView: React.FC = () => {
               style={{ flex: 1, height: '42px', fontSize: '0.875rem' }}
             >
               {isTesting ? <Loader2 size={16} className="animate-spin" /> : <Terminal size={16} />}
-              Test AI Session
+              Run Real Session Test
             </button>
           </div>
 
@@ -237,63 +263,71 @@ export const AIStudioView: React.FC = () => {
             >
               <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
                 {testResult.success ? <CheckCircle2 size={16} /> : <AlertTriangle size={16} />}
-                {testResult.success ? '✓ Local ChatGPT Session Test Passed' : '✕ Local Session Test Failed'}
+                {testResult.success ? 'REAL CHATGPT SESSION VERIFIED' : '✕ Real Session Test Failed'}
               </div>
               <div>{testResult.message}</div>
-              {testResult.responseText && (
-                <div style={{ marginTop: '8px', fontSize: '0.75rem', fontFamily: 'monospace', background: 'rgba(0,0,0,0.2)', padding: '6px 10px', borderRadius: '4px' }}>
-                  Response: {testResult.responseText}
+              {testResult.capturedText && (
+                <div style={{ marginTop: '10px', fontSize: '0.75rem', fontFamily: 'monospace', background: 'rgba(0,0,0,0.3)', padding: '10px 12px', borderRadius: '6px', color: '#E2E8F0', border: '1px solid var(--border-color)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--accent)', marginBottom: '4px', fontWeight: 600 }}>
+                    <Code size={13} /> Captured Response Text:
+                  </div>
+                  {testResult.capturedText}
                 </div>
               )}
             </div>
           )}
         </div>
 
-        {/* Diagnostics Panel (Section 9) */}
+        {/* Diagnostics Panel (Part 3 Requirements) */}
         <div className="card card-elevated" style={{ padding: '24px', height: 'fit-content' }}>
           <h3 className="heading-sm" style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Cpu size={18} style={{ color: 'var(--accent)' }} /> Session Diagnostics
           </h3>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '0.8125rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
-              <span>Browser Detection</span>
-              <span style={{ color: 'var(--success)', fontWeight: 600 }}>✓ Detected</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '0.8125rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>
+              <span>Browser</span>
+              {renderDiagnosticBadge(diagnostics.browser)}
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>
               <span>ChatGPT Page</span>
-              <span style={{ color: isSessionConnected ? 'var(--success)' : 'var(--text-muted)', fontWeight: 600 }}>
-                {isSessionConnected ? '✓ Detected' : '● Waiting'}
-              </span>
+              {renderDiagnosticBadge(diagnostics.chatgptPage)}
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
-              <span>User Session</span>
-              <span style={{ color: isSessionConnected ? 'var(--success)' : 'var(--text-muted)', fontWeight: 600 }}>
-                {isSessionConnected ? '✓ Ready' : '● Waiting'}
-              </span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>
+              <span>Authenticated Session</span>
+              {renderDiagnosticBadge(diagnostics.authenticatedSession)}
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
-              <span>Prompt Input</span>
-              <span style={{ color: isSessionConnected ? 'var(--success)' : 'var(--text-muted)', fontWeight: 600 }}>
-                {isSessionConnected ? '✓ Detected' : '● Waiting'}
-              </span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>
+              <span>Composer</span>
+              {renderDiagnosticBadge(diagnostics.composer)}
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>
+              <span>Prompt Injection</span>
+              {renderDiagnosticBadge(diagnostics.promptInjection)}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>
+              <span>Prompt Submission</span>
+              {renderDiagnosticBadge(diagnostics.promptSubmission)}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>
+              <span>Response Detection</span>
+              {renderDiagnosticBadge(diagnostics.responseDetection)}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '6px' }}>
               <span>Response Capture</span>
-              <span style={{ color: isSessionConnected ? 'var(--success)' : 'var(--text-muted)', fontWeight: 600 }}>
-                {isSessionConnected ? '✓ Ready' : '● Waiting'}
-              </span>
+              {renderDiagnosticBadge(diagnostics.responseCapture)}
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span>Local Automation</span>
-              <span style={{ color: isSessionConnected ? 'var(--success)' : 'var(--text-muted)', fontWeight: 600 }}>
-                {isSessionConnected ? '✓ Ready' : '● Waiting'}
-              </span>
+              <span>End-to-End Test</span>
+              {renderDiagnosticBadge(diagnostics.endToEndTest)}
             </div>
           </div>
 

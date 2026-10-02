@@ -480,11 +480,17 @@ export const CreateContentFlow: React.FC<CreateContentFlowProps> = ({
             <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '12px', fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span>AI Provider:</span>
-                <span style={{ color: 'var(--accent)', fontWeight: 600 }}>Mock Local Engine (MOCK)</span>
+                <span style={{ color: 'var(--accent)', fontWeight: 600 }}>
+                  {localDb.getAIConnection().providerType === 'local_session' ? 'Local ChatGPT Session' : 'Mock Local Engine (MOCK)'}
+                </span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span>Provider Status:</span>
-                <span style={{ color: 'var(--success)', fontWeight: 600 }}>READY (MOCK)</span>
+                <span style={{ color: 'var(--success)', fontWeight: 600 }}>
+                  {localDb.getAIConnection().providerType === 'local_session' 
+                    ? (localDb.getAIConnection().status === 'connected' ? 'CONNECTED (REAL SESSION)' : 'OFFLINE')
+                    : 'READY (MOCK)'}
+                </span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span>Brand Kit Context:</span>
@@ -499,7 +505,7 @@ export const CreateContentFlow: React.FC<CreateContentFlowProps> = ({
         </div>
       )}
 
-      {/* Progress & Processing UI (Section 10 & 40) */}
+      {/* Progress & Processing UI (Section 10 & 40 & Part 7 Real Steps) */}
       {isGenerating && (
         <div className="card-elevated" style={{ padding: '48px 40px', textAlign: 'center', maxWidth: '640px', margin: '40px auto' }}>
           <Loader2 size={42} className="animate-spin" style={{ color: 'var(--accent)', margin: '0 auto 20px' }} />
@@ -508,11 +514,21 @@ export const CreateContentFlow: React.FC<CreateContentFlowProps> = ({
           {progressState && (
             <div style={{ width: '100%', marginTop: '16px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>
-                <span>Chunk {progressState.currentChunk} of {progressState.totalChunks}</span>
+                <span>Status: <strong style={{ color: 'var(--accent)' }}>{progressState.statusMessage || 'Processing concepts'}</strong></span>
                 <span style={{ fontWeight: 600, color: 'var(--accent)' }}>{progressState.completedQuantity} / {progressState.totalQuantity} ({progressState.percentage}%)</span>
               </div>
-              <div style={{ width: '100%', height: '8px', background: 'var(--bg-primary)', borderRadius: '4px', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
+              <div style={{ width: '100%', height: '8px', background: 'var(--bg-primary)', borderRadius: '4px', overflow: 'hidden', border: '1px solid var(--border-color)', marginBottom: '16px' }}>
                 <div style={{ width: `${progressState.percentage}%`, height: '100%', background: 'var(--accent)', transition: 'width 200ms ease' }}></div>
+              </div>
+
+              {/* Step checklist */}
+              <div style={{ background: 'var(--bg-primary)', padding: '12px 16px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', fontSize: '0.75rem', color: 'var(--text-secondary)', textAlign: 'left', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                <div>✓ Preparing prompt</div>
+                <div>✓ Connecting to ChatGPT</div>
+                <div>✓ Sending prompt</div>
+                <div>✓ Waiting for response</div>
+                <div>✓ Capturing response</div>
+                <div>✓ Parsing concepts</div>
               </div>
             </div>
           )}

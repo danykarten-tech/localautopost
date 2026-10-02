@@ -19,6 +19,7 @@ export interface GenerationProgressPayload {
   totalChunks: number;
   percentage: number;
   status: GenerationBatch['status'];
+  statusMessage?: string;
 }
 
 export class ContentEngine {
