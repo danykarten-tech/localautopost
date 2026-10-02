@@ -88,7 +88,7 @@ export class LocalBrowserBridgeService {
 
     const isDbConnected = platform.toLowerCase() === 'instagram' 
       ? (savedAccount && savedAccount.status === 'connected')
-      : (aiConn && aiConn.sessionStatus === 'ready');
+      : (aiConn && (aiConn.sessionState === 'SESSION_READY' || aiConn.chatgptSession === 'Ready'));
 
     if (isDbConnected || options?.allowTestFallback) {
       this.setPublishingState('AUTOMATION_READY');

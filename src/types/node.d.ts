@@ -1,3 +1,6 @@
+declare const process: any;
+declare const require: any;
+
 declare module 'path' {
   export function join(...paths: string[]): string;
   export function resolve(...paths: string[]): string;

@@ -1,4 +1,4 @@
-import { chromium, BrowserContext, Page } from 'playwright';
+import type { BrowserContext, Page } from 'playwright';
 import { browserProfileManager } from './BrowserProfileManager';
 import { localDb } from '../../../data/local/database';
 
@@ -11,8 +11,24 @@ export interface LocalBrowserStatus {
   launchedAt?: string;
 }
 
+const isNode = typeof window === 'undefined' && typeof process !== 'undefined' && Boolean(process.versions?.node);
+
+let playwrightChromium: any = null;
+async function getChromium() {
+  if (!isNode) return null;
+  if (!playwrightChromium) {
+    try {
+      const pw = await import('playwright');
+      playwrightChromium = pw.chromium;
+    } catch (e) {
+      console.warn('Playwright dynamic import warning:', e);
+    }
+  }
+  return playwrightChromium;
+}
+
 export class LocalBrowserManager {
-  private context: BrowserContext | null = null;
+  private context: any = null;
   private isLaunching = false;
   private status: LocalBrowserStatus = {
     isProcessRunning: false,
@@ -24,13 +40,12 @@ export class LocalBrowserManager {
   /**
    * Launch or connect to local persistent browser context
    */
-  public async launch(options: { headless?: boolean } = {}): Promise<BrowserContext> {
+  public async launch(options: { headless?: boolean } = {}): Promise<any> {
     if (this.context) {
       return this.context;
     }
 
     if (this.isLaunching) {
-      // Wait for launch to finish
       await new Promise(r => setTimeout(r, 1000));
       if (this.context) return this.context;
     }
@@ -40,6 +55,19 @@ export class LocalBrowserManager {
     const executablePath = browserProfileManager.getExecutablePath();
 
     localDb.logActivity('automation_triggered', 'Browser Launch Initiated', `Launching persistent browser context from "${paths.profileDir}".`);
+
+    const chromium = await getChromium();
+    if (!chromium) {
+      this.status = {
+        isProcessRunning: false,
+        profilePath: paths.profileDir,
+        activePagesCount: 0,
+        health: 'OFFLINE',
+        lastError: 'Playwright is only executable in Node/Electron environment.'
+      };
+      this.isLaunching = false;
+      return null;
+    }
 
     try {
       this.context = await chromium.launchPersistentContext(paths.profileDir, {
@@ -92,8 +120,9 @@ export class LocalBrowserManager {
   /**
    * Gets or creates a specific page (e.g. for ChatGPT or Instagram)
    */
-  public async getOrCreatePage(targetUrlPrefix: string): Promise<Page> {
+  public async getOrCreatePage(targetUrlPrefix: string): Promise<any> {
     const context = await this.launch();
+    if (!context) return null;
     const pages = context.pages();
 
     for (const p of pages) {
@@ -103,7 +132,6 @@ export class LocalBrowserManager {
       }
     }
 
-    // Create new page if not found
     const newPage = await context.newPage();
     this.status.activePagesCount = context.pages().length;
     return newPage;
@@ -128,7 +156,7 @@ export class LocalBrowserManager {
   /**
    * Restart local browser
    */
-  public async restart(): Promise<BrowserContext> {
+  public async restart(): Promise<any> {
     await this.close();
     return this.launch();
   }
@@ -155,7 +183,7 @@ export class LocalBrowserManager {
     return this.status;
   }
 
-  public getContext(): BrowserContext | null {
+  public getContext(): any {
     return this.context;
   }
 }

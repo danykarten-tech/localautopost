@@ -1,6 +1,3 @@
-import path from 'path';
-import fs from 'fs';
-
 export interface BrowserProfilePaths {
   rootDir: string;
   profileDir: string;
@@ -9,28 +6,49 @@ export interface BrowserProfilePaths {
   logsDir: string;
 }
 
+const isNode = typeof window === 'undefined' && typeof process !== 'undefined' && Boolean(process.versions?.node);
+
 export class BrowserProfileManager {
   private paths: BrowserProfilePaths;
 
   constructor(customBaseDir?: string) {
-    const baseDir = customBaseDir || path.resolve('.local-browser');
+    const baseDir = customBaseDir || '.local-browser';
     this.paths = {
       rootDir: baseDir,
-      profileDir: path.join(baseDir, 'profile'),
-      downloadsDir: path.join(baseDir, 'downloads'),
-      screenshotsDir: path.join(baseDir, 'screenshots'),
-      logsDir: path.join(baseDir, 'logs')
+      profileDir: `${baseDir}/profile`,
+      downloadsDir: `${baseDir}/downloads`,
+      screenshotsDir: `${baseDir}/screenshots`,
+      logsDir: `${baseDir}/logs`
     };
 
-    this.ensureDirectories();
+    if (isNode) {
+      this.ensureDirectories();
+    }
   }
 
   public ensureDirectories(): BrowserProfilePaths {
-    Object.values(this.paths).forEach(dirPath => {
-      if (!fs.existsSync(dirPath)) {
-        fs.mkdirSync(dirPath, { recursive: true });
+    if (isNode) {
+      try {
+        const fs = require('fs');
+        const path = require('path');
+        const baseDir = path.resolve(this.paths.rootDir);
+        const resolvedPaths = {
+          rootDir: baseDir,
+          profileDir: path.join(baseDir, 'profile'),
+          downloadsDir: path.join(baseDir, 'downloads'),
+          screenshotsDir: path.join(baseDir, 'screenshots'),
+          logsDir: path.join(baseDir, 'logs')
+        };
+        Object.values(resolvedPaths).forEach(dirPath => {
+          if (!fs.existsSync(dirPath)) {
+            fs.mkdirSync(dirPath, { recursive: true });
+          }
+        });
+        this.paths = resolvedPaths;
+      } catch (e) {
+        // Safe fallback in non-node environment
       }
-    });
+    }
     return this.paths;
   }
 
@@ -55,8 +73,12 @@ export class BrowserProfileManager {
   }
 
   public getExecutablePath(): string | undefined {
-    const chromeMac = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-    if (fs.existsSync(chromeMac)) return chromeMac;
+    if (!isNode) return undefined;
+    try {
+      const fs = require('fs');
+      const chromeMac = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+      if (fs.existsSync(chromeMac)) return chromeMac;
+    } catch (e) {}
     return undefined;
   }
 }
