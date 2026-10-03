@@ -37,28 +37,41 @@ export class ChatGPTBrowserConnector {
    * Opens or navigates to ChatGPT and checks real DOM session state
    */
   public async checkSession(): Promise<ChatGPTConnectorState> {
-    this.state.currentUrl = 'https://chatgpt.com';
     this.state.lastCheckedAt = new Date().toISOString();
 
     try {
       const page = await localBrowserManager.getOrCreatePage('chatgpt.com');
       this.state.status = 'CHATGPT_BROWSER_OPEN';
 
-      if (!page.url().includes('chatgpt.com') && !page.url().includes('chat.openai.com')) {
-        await page.goto('https://chatgpt.com', { waitUntil: 'domcontentloaded', timeout: 8000 }).catch(() => {});
+      if (!page) {
+        this.state.status = 'CHATGPT_OFFLINE';
+        this.state.isReady = false;
+        return this.state;
       }
 
-      const currentUrl = page.url();
-      this.state.currentUrl = (!currentUrl || currentUrl === 'about:blank') ? 'https://chatgpt.com' : currentUrl;
       const url = page.url();
+      this.state.currentUrl = (!url || url === 'about:blank') ? 'https://chatgpt.com' : url;
 
-      // 1. Check for Login page
-      if (url.includes('/auth/login') || url.includes('/login')) {
+      // 1. Check for Authentication / Login URLs (SILENT OBSERVER MODE — DO NOT CALL GOTO)
+      const isAuthDomain = url.includes('auth.openai.com') ||
+                           url.includes('auth0.openai.com') ||
+                           url.includes('accounts.google.com') ||
+                           url.includes('appleid.apple.com') ||
+                           url.includes('login.live.com') ||
+                           url.includes('/auth/login') ||
+                           url.includes('/login');
+
+      if (isAuthDomain) {
         this.state.status = 'CHATGPT_LOGIN_REQUIRED';
         this.state.isReady = false;
         this.state.requiresManualLogin = true;
         this.updateDbStatus(false, 'Login Required');
         return this.state;
+      }
+
+      // If page is about:blank, initial navigate to chatgpt.com ONCE
+      if (url === 'about:blank' || !url) {
+        await page.goto('https://chatgpt.com', { waitUntil: 'domcontentloaded', timeout: 15000 }).catch(() => {});
       }
 
       // 2. Check for Cloudflare / Security Challenge

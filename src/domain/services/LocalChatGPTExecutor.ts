@@ -168,12 +168,18 @@ export class LocalChatGPTExecutorService {
 
     // 3. Inject Prompt Text into DOM Composer
     if (onStep) onStep('Injecting prompt into composer');
-    await page.focus(composerSelector).catch(() => {});
-    await page.fill(composerSelector, promptText).catch(async () => {
-      await page.type(composerSelector, promptText);
-    });
+    await page.click(composerSelector).catch(() => {});
+    try {
+      await page.fill(composerSelector, promptText);
+    } catch (e) {
+      try {
+        await page.keyboard.insertText(promptText);
+      } catch (e2) {
+        await page.type(composerSelector, promptText);
+      }
+    }
 
-    await new Promise(r => setTimeout(r, 200));
+    await new Promise(r => setTimeout(r, 250));
 
     // 4. Submit Prompt (Click Send button or press Enter)
     if (onStep) onStep('Submitting prompt to ChatGPT');
@@ -194,12 +200,12 @@ export class LocalChatGPTExecutorService {
     }
 
     if (!clickedSend) {
-      await page.press(composerSelector, 'Enter').catch(() => {});
+      await page.keyboard.press('Enter').catch(() => {});
     }
 
     // 5. State-Aware Response Detection & Extraction
     if (onStep) onStep('Waiting for ChatGPT response DOM stream');
-    const assistantMsgSelector = 'div[data-message-author-role="assistant"], .markdown, .agent-turn';
+    const assistantMsgSelector = 'div[data-message-author-role="assistant"], article[data-testid*="conversation-turn"]:has(div[data-message-author-role="assistant"]), .markdown, .agent-turn';
 
     // Wait up to 25s for assistant message element to appear
     const foundMsg = await page.waitForSelector(assistantMsgSelector, { state: 'visible', timeout: 25000 }).catch(() => null);

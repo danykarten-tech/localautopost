@@ -126,9 +126,24 @@ export class LocalBrowserManager {
     const pages = context.pages();
 
     for (const p of pages) {
-      if (p.url().includes(targetUrlPrefix)) {
-        this.status.activePagesCount = context.pages().length;
+      const url = p.url();
+      if (url.includes(targetUrlPrefix)) {
+        this.status.activePagesCount = pages.length;
         return p;
+      }
+      if (targetUrlPrefix.includes('chatgpt') || targetUrlPrefix.includes('openai')) {
+        if (
+          url.includes('chatgpt.com') ||
+          url.includes('openai.com') ||
+          url.includes('auth.openai.com') ||
+          url.includes('auth0.openai.com') ||
+          url.includes('accounts.google.com') ||
+          url.includes('appleid.apple.com') ||
+          url.includes('login.live.com')
+        ) {
+          this.status.activePagesCount = pages.length;
+          return p;
+        }
       }
     }
 
