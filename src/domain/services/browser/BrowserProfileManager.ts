@@ -77,8 +77,15 @@ export class BrowserProfileManager {
     try {
       const fs = require('fs');
       const chromeMac = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-      if (fs.existsSync(chromeMac)) return chromeMac;
+      if (fs.existsSync(chromeMac)) {
+        return chromeMac;
+      }
     } catch (e) {}
+
+    // Fallback macOS system Chrome path if fs check is bypassed in bundled runtime
+    if (typeof process !== 'undefined' && process.platform === 'darwin') {
+      return '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+    }
     return undefined;
   }
 }

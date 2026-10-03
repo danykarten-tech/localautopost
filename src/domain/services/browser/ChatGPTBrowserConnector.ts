@@ -82,7 +82,10 @@ export class ChatGPTBrowserConnector {
       }
 
       const hasLoginButton = await page.isVisible('button[data-testid="login-button"]').catch(() => false) ||
-                             await page.isVisible('a[href*="/auth/login"]').catch(() => false);
+                             await page.isVisible('a[href*="/auth/login"]').catch(() => false) ||
+                             await page.isVisible('button:has-text("Log in")').catch(() => false) ||
+                             await page.isVisible('a:has-text("Log in")').catch(() => false) ||
+                             await page.isVisible('a[href*="login"]').catch(() => false);
 
       if (hasLoginButton) {
         this.state.status = 'CHATGPT_LOGIN_REQUIRED';

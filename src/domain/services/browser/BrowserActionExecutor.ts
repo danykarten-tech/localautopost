@@ -1,9 +1,6 @@
-import { Page } from 'playwright';
-import path from 'path';
-import fs from 'fs';
+import type { Page } from 'playwright';
 import { localBrowserManager } from './LocalBrowserManager';
 import { browserProfileManager } from './BrowserProfileManager';
-import { localDb } from '../../../data/local/database';
 
 export interface ActionResult<T = any> {
   success: boolean;
@@ -13,6 +10,8 @@ export interface ActionResult<T = any> {
   screenshotPath?: string;
   durationMs?: number;
 }
+
+const isNode = typeof window === 'undefined' && typeof process !== 'undefined' && Boolean(process.versions?.node);
 
 export class BrowserActionExecutor {
   /**
@@ -24,6 +23,15 @@ export class BrowserActionExecutor {
     const page = await localBrowserManager.getOrCreatePage(domain);
 
     this.logAction('openUrl', `Opening URL "${targetUrl}"`);
+
+    if (!page) {
+      return {
+        success: false,
+        state: 'failed',
+        error: 'Browser page context unavailable.',
+        durationMs: Date.now() - startTime
+      };
+    }
 
     try {
       await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
@@ -122,12 +130,17 @@ export class BrowserActionExecutor {
    */
   public async uploadFile(page: Page, inputSelector: string, filePath: string): Promise<ActionResult<boolean>> {
     const startTime = Date.now();
-    if (!fs.existsSync(filePath)) {
-      return {
-        success: false,
-        state: 'failed',
-        error: `File path does not exist: "${filePath}"`
-      };
+    if (isNode) {
+      try {
+        const fs = require('fs');
+        if (!fs.existsSync(filePath)) {
+          return {
+            success: false,
+            state: 'failed',
+            error: `File path does not exist: "${filePath}"`
+          };
+        }
+      } catch (e) {}
     }
 
     try {
@@ -153,9 +166,17 @@ export class BrowserActionExecutor {
    */
   public async takeScreenshot(page: Page, filename: string): Promise<string> {
     const ssDir = browserProfileManager.getScreenshotsPath();
-    const targetPath = path.join(ssDir, filename);
+    let targetPath = `${ssDir}/${filename}`;
+    if (isNode) {
+      try {
+        const path = require('path');
+        targetPath = path.join(ssDir, filename);
+      } catch (e) {}
+    }
     try {
-      await page.screenshot({ path: targetPath, fullPage: false }).catch(() => {});
+      if (page && typeof page.screenshot === 'function') {
+        await page.screenshot({ path: targetPath, fullPage: false }).catch(() => {});
+      }
       return targetPath;
     } catch (e) {
       return targetPath;
@@ -163,10 +184,16 @@ export class BrowserActionExecutor {
   }
 
   private logAction(action: string, msg: string) {
-    const logsDir = browserProfileManager.getLogsPath();
-    const logFile = path.join(logsDir, 'automation.log');
-    const line = `[${new Date().toISOString()}] [${action}] ${msg}\n`;
-    fs.appendFileSync(logFile, line, { encoding: 'utf-8' });
+    if (isNode) {
+      try {
+        const fs = require('fs');
+        const path = require('path');
+        const logsDir = browserProfileManager.getLogsPath();
+        const logFile = path.join(logsDir, 'automation.log');
+        const line = `[${new Date().toISOString()}] [${action}] ${msg}\n`;
+        fs.appendFileSync(logFile, line, { encoding: 'utf-8' });
+      } catch (e) {}
+    }
   }
 }
 
